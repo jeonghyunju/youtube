@@ -1,14 +1,18 @@
 // src/app/api/youtube/search/route.ts
 import { NextResponse } from 'next/server';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const YOUTUBE_API_BASE = 'https://www.googleapis.com/youtube/v3';
-const API_KEY = process.env.YOUTUBE_API_KEY; // .env.local 파일에 설정 필요
+const API_KEY = process.env.YOUTUBE_API_KEY; 
+const AI_API_KEY = process.env.GOOGLE_AI_API_KEY;
+
+const ai = new GoogleGenerativeAI(AI_API_KEY || '');
 
 export async function GET(request: Request) {
   try {
     // 0. 프론트엔드로부터 쿼리 파라미터 수신 (검색어, 국가 코드)
     const { searchParams } = new URL(request.url);
-    let query = searchParams.get('q');
+    let query = searchParams.get('q') || '';
     const regionCode = searchParams.get('regionCode') || 'KR';
 
     const maxResultsParam = searchParams.get('maxResults') || '20';
@@ -25,6 +29,39 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'YouTube API key is missing in server configuration' }, { status: 500 });
     }
 
+    let originalQuery = query;
+    let isTranslated = false;
+
+    // =================================================================
+    // [AI 고도화] 국가가 한국(KR)이 아닐 때, Gemini AI를 통한 유튜브 맞춤 의역 엔진 가동
+    // =================================================================
+    if (regionCode !== 'KR') {
+      try {
+        const model = ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        
+        // AI가 정형화된 단어 하나만 딱 뱉도록 가이드하는 프롬프트 조립
+        const prompt = `
+          You are a professional translator specializing in global social media and YouTube trends.
+          Translate the following Korean search query into natural English that real native speakers would use when searching on YouTube.
+          Focus on YouTube tags, memes, slang, or trendy keywords (e.g., "생활 꿀팁" should be translated as "life hacks", not "life tips").
+          
+          Provide ONLY the final translated English search query text without any explanations, quotes, introduction, or punctuation.
+          
+          Korean Query: ${query}
+        `;
+
+        const aiResult = await model.generateContent(prompt);
+        const translatedText = aiResult.response.text().trim();
+
+        if (translatedText) {
+          query = translatedText; 
+          isTranslated = true;
+          console.log(`[AI 유튜브 의역 완료] ${originalQuery} -> ${query}`);
+        }
+      } catch (aiError) {
+        console.error('AI Translation error, proceeding with original query:', aiError);
+      }
+    }
 
     // =================================================================
     // videoDuration 파라미터 1:1 매핑
