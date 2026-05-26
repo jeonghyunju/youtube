@@ -1,44 +1,53 @@
 // src/app/api/youtube/search/route.ts
-import { NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { NextResponse } from "next/server";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const YOUTUBE_API_BASE = 'https://www.googleapis.com/youtube/v3';
-const API_KEY = process.env.YOUTUBE_API_KEY; 
+const YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3";
+const API_KEY = process.env.YOUTUBE_API_KEY;
 const AI_API_KEY = process.env.GOOGLE_AI_API_KEY;
 
-const ai = new GoogleGenerativeAI(AI_API_KEY || '');
+const ai = new GoogleGenerativeAI(AI_API_KEY || "");
 
 export async function GET(request: Request) {
   try {
     // 0. 프론트엔드로부터 쿼리 파라미터 수신 (검색어, 국가 코드)
     const { searchParams } = new URL(request.url);
-    let query = searchParams.get('q') || '';
-    const regionCode = searchParams.get('regionCode') || 'KR';
+    let query = searchParams.get("q") || "";
+    const regionCode = searchParams.get("regionCode") || "KR";
 
-    const maxResultsParam = searchParams.get('maxResults') || '20';
-    const maxResults = Math.min(Math.max(parseInt(maxResultsParam, 10) || 20, 1), 50); 
+    const maxResultsParam = searchParams.get("maxResults") || "20";
+    const maxResults = Math.min(
+      Math.max(parseInt(maxResultsParam, 10) || 20, 1),
+      50
+    );
 
-    const dateRange = searchParams.get('dateRange') || '1w';
-    const videoLength = searchParams.get('videoLength') || 'all';
+    const dateRange = searchParams.get("dateRange") || "1w";
+    const videoLength = searchParams.get("videoLength") || "all";
 
     if (!query) {
-      return NextResponse.json({ error: 'Search query is required' }, { status: 400 });
+      return NextResponse.json(
+        { error: "Search query is required" },
+        { status: 400 }
+      );
     }
 
     if (!API_KEY) {
-      return NextResponse.json({ error: 'YouTube API key is missing in server configuration' }, { status: 500 });
+      return NextResponse.json(
+        { error: "YouTube API key is missing in server configuration" },
+        { status: 500 }
+      );
     }
 
     let originalQuery = query;
     let isTranslated = false;
 
     // =================================================================
-    // [AI 고도화] 국가가 한국(KR)이 아닐 때, Gemini AI를 통한 유튜브 맞춤 의역 엔진 가동
+    // 국가가 한국(KR)이 아닐 때, Gemini AI를 통한 유튜브 맞춤 의역 엔진 가동
     // =================================================================
-    if (regionCode !== 'KR') {
+    if (regionCode !== "KR") {
       try {
-        const model = ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
-        
+        const model = ai.getGenerativeModel({ model: "gemini-2.5-flash" });
+
         // AI가 정형화된 단어 하나만 딱 뱉도록 가이드하는 프롬프트 조립
         const prompt = `
           You are a professional translator specializing in global social media and YouTube trends.
@@ -54,40 +63,43 @@ export async function GET(request: Request) {
         const translatedText = aiResult.response.text().trim();
 
         if (translatedText) {
-          query = translatedText; 
+          query = translatedText;
           isTranslated = true;
-          console.log(`[AI 유튜브 의역 완료] ${originalQuery} -> ${query}`);
+        //   console.log(`[AI 유튜브 의역 완료] ${originalQuery} -> ${query}`);
         }
       } catch (aiError) {
-        console.error('AI Translation error, proceeding with original query:', aiError);
+        console.error(
+          "AI Translation error, proceeding with original query:",
+          aiError
+        );
       }
     }
 
     // =================================================================
     // videoDuration 파라미터 1:1 매핑
     // =================================================================
-    let durationParam = '';
-    if (videoLength === 'short') {
-        durationParam = '&videoDuration=short'; // 구글 기준: 4분 이하 영상 전체
-    } else if (videoLength === 'long') {
-        durationParam = '&videoDuration=long';  // 구글 기준: 20분 이상 장편 영상
+    let durationParam = "";
+    if (videoLength === "short") {
+      durationParam = "&videoDuration=short"; // 구글 기준: 4분 이하 영상 전체
+    } else if (videoLength === "long") {
+      durationParam = "&videoDuration=long"; // 구글 기준: 20분 이상 장편 영상
     } else {
-        durationParam = '&videoDuration=any';
+      durationParam = "&videoDuration=any";
     }
 
     // ==========================================
     // dateRange에 따른 publishedAfter 계산 (ISO 8601 형식 생성)
     // ==========================================
     const now = new Date();
-    if (dateRange === '1w') {
+    if (dateRange === "1w") {
       now.setDate(now.getDate() - 7);
-    } else if (dateRange === '1m') {
+    } else if (dateRange === "1m") {
       now.setMonth(now.getMonth() - 1);
-    } else if (dateRange === '3m') {
+    } else if (dateRange === "3m") {
       now.setMonth(now.getMonth() - 3);
-    } else if (dateRange === '6m') {
+    } else if (dateRange === "6m") {
       now.setMonth(now.getMonth() - 6);
-    } else if (dateRange === '1y') {
+    } else if (dateRange === "1y") {
       now.setFullYear(now.getFullYear() - 1);
     }
     const publishedAfter = now.toISOString(); // 예: 2026-05-15T17:34:05.000Z
@@ -96,8 +108,12 @@ export async function GET(request: Request) {
     // STEP 1: 유튜브 검색 API 호출 (search.list)
     // ==========================================
     // 대량 호출 방지를 위해 결과는 20개로 제한, 조회수순(viewCount) 기본 정렬
-    const searchUrl = `${YOUTUBE_API_BASE}/search?part=snippet&q=${encodeURIComponent(query)}&regionCode=${regionCode}&publishedAfter=${encodeURIComponent(publishedAfter)}${durationParam}&order=viewCount&type=video&maxResults=${maxResults}&key=${API_KEY}`;
-    
+    const searchUrl = `${YOUTUBE_API_BASE}/search?part=snippet&q=${encodeURIComponent(
+      query
+    )}&regionCode=${regionCode}&publishedAfter=${encodeURIComponent(
+      publishedAfter
+    )}${durationParam}&order=viewCount&type=video&maxResults=${maxResults}&key=${API_KEY}`;
+
     // console.log('search url : ', searchUrl);
 
     const searchRes = await fetch(searchUrl);
@@ -122,7 +138,9 @@ export async function GET(request: Request) {
       return {
         id: videoId,
         title: item.snippet.title,
-        thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.default?.url,
+        thumbnail:
+          item.snippet.thumbnails?.high?.url ||
+          item.snippet.thumbnails?.default?.url,
         channel: item.snippet.channelTitle,
         channelId: channelId,
         date: item.snippet.publishedAt, // ISO 8601 포맷
@@ -130,18 +148,18 @@ export async function GET(request: Request) {
     });
 
     // 쉼표로 연결된 문자열 생성 (예: "id1,id2,id3") -> 할당량 절약을 위한 배치 처리 필수 스펙
-    const videoIdsStr = videoIds.join(',');
-    const channelIdsStr = Array.from(new Set(channelIds)).join(','); // 중복 채널 ID 제거 후 결합
+    const videoIdsStr = videoIds.join(",");
+    const channelIdsStr = Array.from(new Set(channelIds)).join(","); // 중복 채널 ID 제거 후 결합
 
     // ==========================================
     // STEP 2 & 3: 상세 스펙 일괄 요청 (Promise.all 병렬 처리)
     // ==========================================
-    const videosUrl = `${YOUTUBE_API_BASE}/videos?part=statistics,contentDetails&id=${videoIdsStr}&key=${API_KEY}`;
+    const videosUrl = `${YOUTUBE_API_BASE}/videos?part=statistics,contentDetails,snippet&id=${videoIdsStr}&key=${API_KEY}`;
     const channelsUrl = `${YOUTUBE_API_BASE}/channels?part=statistics&id=${channelIdsStr}&key=${API_KEY}`;
 
     const [videosRes, channelsRes] = await Promise.all([
       fetch(videosUrl),
-      fetch(channelsUrl)
+      fetch(channelsUrl),
     ]);
 
     const videosData = await videosRes.json();
@@ -151,17 +169,18 @@ export async function GET(request: Request) {
     const videoStatsMap = new Map();
     videosData.items?.forEach((v: any) => {
       videoStatsMap.set(v.id, {
-        views: parseInt(v.statistics?.viewCount || '0', 10),
-        likes: parseInt(v.statistics?.likeCount || '0', 10),
-        comments: parseInt(v.statistics?.commentCount || '0', 10),
+        views: parseInt(v.statistics?.viewCount || "0", 10),
+        likes: parseInt(v.statistics?.likeCount || "0", 10),
+        comments: parseInt(v.statistics?.commentCount || "0", 10),
         duration: v.contentDetails?.duration, // ISO 8601 포맷 재생시간 (예: PT12M45S)
+        tags: v.snippet?.tags || [],
       });
     });
 
     const channelStatsMap = new Map();
     channelsData.items?.forEach((c: any) => {
       channelStatsMap.set(c.id, {
-        subscribers: parseInt(c.statistics?.subscriberCount || '0', 10),
+        subscribers: parseInt(c.statistics?.subscriberCount || "0", 10),
       });
     });
 
@@ -169,7 +188,13 @@ export async function GET(request: Request) {
     // STEP 4: 데이터 결합 (마스터 조인)
     // ==========================================
     const finalizedResult = baseItems.map((item: any) => {
-      const vStats = videoStatsMap.get(item.id) || { views: 0, likes: 0, comments: 0, duration: 'PT0S' };
+      const vStats = videoStatsMap.get(item.id) || {
+        views: 0,
+        likes: 0,
+        comments: 0,
+        duration: "PT0S",
+        tags: [],
+      };
       const cStats = channelStatsMap.get(item.channelId) || { subscribers: 0 };
 
       return {
@@ -186,12 +211,23 @@ export async function GET(request: Request) {
         duration: vStats.duration,
         // 채널 상세 정보 주입
         subscribers: cStats.subscribers,
+        tags: vStats.tags,
       };
     });
 
-    return NextResponse.json({ items: finalizedResult });
+    return NextResponse.json({
+      items: finalizedResult,
+      meta: {
+        searchedQuery: query,
+        originalQuery: originalQuery,
+        isTranslated: isTranslated,
+      },
+    });
   } catch (error) {
-    console.error('YouTube Proxy API Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    console.error("YouTube Proxy API Error:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }
