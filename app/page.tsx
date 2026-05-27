@@ -38,6 +38,14 @@ export default function YouTubeSearchPage() {
   // 동영상 재생 여부 상태 변수
   const [isPlaying, setIsPlaying] = useState(false);
 
+  // 좌측 AI 대본 생성기 제어를 위한 상태 상태값
+  const [isLeftOpen, setIsLeftOpen] = useState(false); // 좌측 서랍 열림 상태
+  const [isLeftClosing, setIsLeftClosing] = useState(false);
+  const [userRawScript, setUserRawScript] = useState(""); // 입력된 자막 스크립트
+  const [scriptStyle, setScriptStyle] = useState("default"); // default, shorts, blog
+  const [generatedResult, setGeneratedResult] = useState(""); // AI 각색 결과물
+  const [isScriptLoading, setIsScriptLoading] = useState(false); // 로딩 스피너 제어
+
   const countries = [
     { name: "대한민국 🇰🇷", code: "KR" },
     { name: "미국 🇺🇸", code: "US" },
@@ -141,12 +149,10 @@ export default function YouTubeSearchPage() {
 
   // 6. 비즈니스 로직: 받아온 원본 배열에 사용자가 선택한 '영상 길이' 필터를 연동하는 함수
   const getProcessedResults = () => {
-    return videos; 
+    return videos;
   };
 
-  // ==========================================
-  // [새로 추가됨] 테이블 행 클릭 시 서랍 제어 로직
-  // ==========================================
+  // 테이블 행 클릭 시 서랍 제어 로직
   const handleRowClick = async (video: YouTubeVideo) => {
     setSelectedVideo(video);
     setIsPanelOpen(true);
@@ -165,6 +171,48 @@ export default function YouTubeSearchPage() {
       console.error("상세 댓글 바인딩 실패:", error);
     } finally {
       setIsPanelLoading(false);
+    }
+  };
+
+  // 닫기 버튼이나 배경 클릭 시 바로 꺼지지 않고 애니메이션을 대기하는 헬퍼 함수
+  const handleCloseLeftDrawer = () => {
+    setIsLeftClosing(true); // 퇴장 애니메이션 시작 클래스 트리거
+
+    // globals.css에 설정한 퇴장 시간(0.25초 = 250ms) 뒤에 컴포넌트 언마운트
+    setTimeout(() => {
+      setIsLeftOpen(false);
+      setIsLeftClosing(false); // 상태 초기화
+    }, 250);
+  };
+
+  // 백엔드 Route Handler 통신 함수
+  const handleGenerateCustomScript = async () => {
+    if (!userRawScript.trim()) {
+      alert("유튜브 자막 스크립트 내용을 먼저 붙여넣어 주세요!");
+      return;
+    }
+
+    setIsScriptLoading(true);
+    setGeneratedResult("");
+
+    try {
+      const response = await fetch("/api/gemini/script", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rawScript: userRawScript, style: scriptStyle }),
+      });
+
+      const data = await response.json();
+      if (response.ok && data.result) {
+        setGeneratedResult(data.result);
+      } else {
+        alert(data.error || "대본 생성 중 오류가 발생했습니다.");
+      }
+    } catch (error) {
+      console.error("AI Script Error:", error);
+      alert("서버 통신 상태가 원활하지 않습니다.");
+    } finally {
+      setIsScriptLoading(false);
     }
   };
 
@@ -355,6 +403,28 @@ export default function YouTubeSearchPage() {
             <h2 className="text-base font-bold tracking-tight flex items-center gap-2">
               <span>✨</span> 검색 결과{" "}
             </h2>
+
+            {/* 폼 또는 필터 컴포넌트 아래 안착 */}
+            <button
+              type="button"
+              onClick={() => setIsLeftOpen(true)}
+              className="w-full md:w-auto px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs rounded-xl transition-all duration-300 flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/10 group tracking-wide"
+            >
+              <span>AI 맞춤형 대본 생성기 열기</span>
+              <svg
+                className="w-3.5 h-3.5 text-indigo-200 group-hover:translate-x-0.5 transition-transform"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2.5"
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </button>
           </div>
 
           <div className="overflow-x-auto">
@@ -486,7 +556,7 @@ export default function YouTubeSearchPage() {
                   COMMENT ANALYSIS
                 </span>
                 <h3
-                  className="text-sm font-bold text-neutral-100 truncate"
+                  className="text-sm font-bold text-neutral-100 leading-snug break-words"
                   title={selectedVideo.title}
                 >
                   {selectedVideo.title}
@@ -535,8 +605,21 @@ export default function YouTubeSearchPage() {
                   </div>
                 )}
               </div>
-              <div className="text-xs text-neutral-400 font-semibold mb-1">
-                {selectedVideo.channel}
+              <div className="flex items-center justify-between mb-2">
+                <div
+                  className="text-xs text-neutral-300 font-bold truncate pr-2"
+                  title={selectedVideo.channel}
+                >
+                  {selectedVideo.channel}
+                </div>
+                <a
+                  href={`https://www.youtube.com/channel/${selectedVideo.channelId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[10px] bg-neutral-800 hover:bg-neutral-700 text-neutral-300 px-2 py-1 rounded-md font-medium border border-neutral-700/50 transition-colors shadow-sm whitespace-nowrap"
+                >
+                  <span>채널 보기</span>
+                </a>
               </div>
               <div className="flex items-center gap-3 text-[11px] text-neutral-500">
                 <span>조회수 {formatNumber(selectedVideo.views, "회")}</span>
@@ -557,7 +640,7 @@ export default function YouTubeSearchPage() {
               ) : (
                 <div className="space-y-3">
                   <h4 className="text-xs font-bold text-neutral-400 mb-3 flex items-center gap-1.5">
-                    <span>🔥</span> TOP 댓글
+                    <span>🔥</span> 댓글 TOP 50
                   </h4>
                   {panelComments.length > 0 ? (
                     panelComments.map((cmt, idx) => (
@@ -589,6 +672,170 @@ export default function YouTubeSearchPage() {
           </>
         )}
       </div>
+
+      {/* ================================================================= */}
+      {/* 좌측 슬라이드 오버 네비게이션 패널 (AI 대본 생성기) */}
+      {/* ================================================================= */}
+      {isLeftOpen && (
+        <>
+          {/* 배경 어둡게 처리 (배경 클릭 시 닫힘) */}
+          <div
+            className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-50 transition-opacity ${
+              isLeftClosing ? "animate-fadeOut" : "animate-fadeIn"
+            }`}
+            onClick={handleCloseLeftDrawer}
+          />
+
+          {/* 좌측 서랍 본체 */}
+          <div
+            className={`fixed inset-y-0 left-0 w-[420px] bg-neutral-900 border-r border-neutral-800 p-6 shadow-2xl overflow-y-auto z-50 text-white flex flex-col justify-between ${
+              isLeftClosing ? "animate-slideOutLeft" : "animate-slideInLeft"
+            }`}
+          >
+            <div>
+              {/* 상단 타이틀 바 */}
+              <div className="flex justify-between items-center mb-5 pb-4 border-b border-neutral-800">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-neutral-200 tracking-wide">
+                    AI 맞춤형 대본 생성기
+                  </h3>
+                </div>
+                <button
+                  onClick={handleCloseLeftDrawer}
+                  className="text-neutral-500 hover:text-white p-1 rounded-lg hover:bg-neutral-800 transition"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              <p className="text-xs text-neutral-400 mb-5 leading-relaxed">
+                유튜브 등에서 직접 복사해 온 원본 자막 스크립트를 아래에
+                붙여넣으세요. 타임스탬프가 섞여 있어도 AI가 정밀하게 각색 및
+                정제합니다.
+              </p>
+
+              {/* 스타일 선택 라디오 칩 (다크모드 톤앤매너 일치) */}
+              <div className="mb-4">
+                <label className="text-[11px] font-bold text-neutral-400 block mb-2">
+                  원하는 각색 스타일 선택
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { id: "default", label: "📝 기본 대본 정제" },
+                    { id: "shorts", label: "🎬 쇼츠 1분 훅킹" },
+                    { id: "blog", label: "✍️ 블로그 포스팅" },
+                  ].map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setScriptStyle(option.id)}
+                      className={`px-3 py-2 text-[11px] rounded-xl border transition-all duration-200 ${
+                        scriptStyle === option.id
+                          ? "bg-indigo-600 text-white border-indigo-600 font-bold shadow-md shadow-indigo-600/20"
+                          : "bg-neutral-950 text-neutral-400 border-neutral-800 hover:text-neutral-200 hover:border-neutral-700"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 날것의 스크립트 대본 입력창 */}
+              <div className="relative mb-4">
+                <textarea
+                  value={userRawScript}
+                  onChange={(e) => setUserRawScript(e.target.value)}
+                  className="w-full h-44 p-3.5 text-xs bg-neutral-950 border border-neutral-800 rounded-xl text-neutral-300 placeholder-neutral-600 focus:outline-none focus:border-neutral-600 focus:ring-1 focus:ring-neutral-600 transition resize-none RegalScroll leading-relaxed"
+                  placeholder="여기에 유튜브 원본 자막 텍스트를 붙여넣으세요..."
+                />
+                {userRawScript && (
+                  <button
+                    onClick={() => setUserRawScript("")}
+                    className="absolute top-2 right-2 text-[10px] bg-neutral-800 hover:bg-neutral-700 text-neutral-400 px-2 py-0.5 rounded-md transition"
+                  >
+                    전체 비우기
+                  </button>
+                )}
+              </div>
+
+              {/* 생성하기 실행 단추 */}
+              <button
+                onClick={handleGenerateCustomScript}
+                disabled={isScriptLoading}
+                className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:from-neutral-800 disabled:to-neutral-800 disabled:text-neutral-600 text-white font-bold text-xs rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/10"
+              >
+                {isScriptLoading ? (
+                  <>
+                    <svg
+                      className="animate-spin h-3.5 w-3.5 text-white"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    <span>AI 작가가 원고 집필 중...</span>
+                  </>
+                ) : (
+                  <span>AI 맞춤 대본 빌드하기</span>
+                )}
+              </button>
+
+              {/* AI가 정제 완료한 최종 결과물 출력창 */}
+              {generatedResult && (
+                <div className="mt-5 p-4 bg-neutral-950 rounded-xl border border-neutral-800 relative animate-fadeIn">
+                  <div className="flex justify-between items-center mb-2.5 pb-2 border-b border-neutral-900">
+                    <h6 className="text-[11px] font-bold text-neutral-400">
+                      ✨ AI 최종 각색본:
+                    </h6>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(generatedResult);
+                        alert("대본이 클립보드에 복사되었습니다!");
+                      }}
+                      className="text-[10px] bg-neutral-800 hover:bg-neutral-700 text-neutral-200 px-2 py-1 rounded-md shadow transition"
+                    >
+                      📋 복사하기
+                    </button>
+                  </div>
+                  <p className="text-xs text-neutral-300 whitespace-pre-wrap leading-relaxed max-h-72 overflow-y-auto pr-1 RegalScroll">
+                    {generatedResult}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* 서랍 하단 푸터 데코레이션 */}
+            <div className="text-[10px] text-neutral-600 text-center pt-4 border-t border-neutral-800/50 mt-6">
+              Powered by Google Gemini 2.5 Flash
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
