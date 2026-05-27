@@ -1,14 +1,14 @@
-// src/app/api/youtube/search/route.ts
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3";
 const API_KEY = process.env.YOUTUBE_API_KEY;
-const AI_API_KEY = process.env.GOOGLE_AI_API_KEY;
+const AI_API_KEY = process.env.GEMINI_API_KEY;
 
 const ai = new GoogleGenerativeAI(AI_API_KEY || "");
 
 export async function GET(request: Request) {
+
   try {
     // 0. 프론트엔드로부터 쿼리 파라미터 수신 (검색어, 국가 코드)
     const { searchParams } = new URL(request.url);
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
     let isTranslated = false;
 
     // =================================================================
-    // [새로 추가됨] ISO 639-1 표준 언어 코드(소문자 2자리) 자동 매핑 구조
+    // ISO 639-1 표준 언어 코드(소문자 2자리) 자동 매핑 구조
     // =================================================================
     const languageMapISO639: { [key: string]: string } = {
       KR: "ko", // 한국어
