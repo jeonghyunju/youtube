@@ -137,7 +137,7 @@ export default function YouTubeSearchPage() {
       {/* 상단 네비게이션 바 */}
       <header className="sticky top-0 z-50 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-800 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-red-500 text-2xl font-bold tracking-tighter flex items-center gap-1">
+          <span className="text-red-500 text-2xl font-bold tracking-tighter flex items-center gap-1.5">
             <span className="inline-block px-3 py-0.5 bg-red-500 text-white rounded-md text-sm">
               ▶
             </span>

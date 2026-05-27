@@ -42,30 +42,67 @@ export async function GET(request: Request) {
     let isTranslated = false;
 
     // =================================================================
+    // [새로 추가됨] ISO 639-1 표준 언어 코드(소문자 2자리) 자동 매핑 구조
+    // =================================================================
+    const languageMapISO639: { [key: string]: string } = {
+      KR: "ko", // 한국어
+      US: "en", // 영어
+      CA: "en", // 영어 (캐나다)
+      GB: "en", // 영어 (영국)
+      IN: "hi", // 힌디어 (인도)
+      FR: "fr", // 프랑스어
+      DE: "de", // 독일어
+      ES: "es", // 스페인어
+      JP: "ja", // 일본어
+    };
+
+    // 선택된 국가 코드에 맞는 언어 코드를 추출 (없으면 기본값 영어 'en')
+    const relevanceLanguage = languageMapISO639[regionCode] || "en";
+
+    // =================================================================
     // 국가가 한국(KR)이 아닐 때, Gemini AI를 통한 유튜브 맞춤 의역 엔진 가동
     // =================================================================
     if (regionCode !== "KR") {
       try {
+        const languageMap: { [key: string]: string } = {
+          US: "Natural English (United States)",
+          CA: "Natural English (Canada)",
+          GB: "Natural English (United Kingdom)",
+          IN: "Hindi or natural English popular in India", // 인도는 힌디어나 인도식 영어 트렌드 반영
+          FR: "Natural French (Français)",
+          DE: "Natural German (Deutsch)",
+          ES: "Natural Spanish (Español)",
+          JP: "Natural Japanese (日本語)",
+        };
+
+        const targetLanguage = languageMap[regionCode] || "Natural English";
+
         const model = ai.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         // AI가 정형화된 단어 하나만 딱 뱉도록 가이드하는 프롬프트 조립
         const prompt = `
-          You are a professional translator specializing in global social media and YouTube trends.
-          Translate the following Korean search query into natural English that real native speakers would use when searching on YouTube.
-          Focus on YouTube tags, memes, slang, or trendy keywords (e.g., "생활 꿀팁" should be translated as "life hacks", not "life tips").
-          
-          Provide ONLY the final translated English search query text without any explanations, quotes, introduction, or punctuation.
-          
-          Korean Query: ${query}
+            You are a professional localizer and cultural expert specializing in global social media and YouTube trends.
+            Translate and localize the following Korean search query into ${targetLanguage} that real native speakers in that specific country (${regionCode}) would actually use when searching for videos on YouTube.
+      
+            CRITICAL REQUIREMENT: Focus on real YouTube tags, cultural expressions, local memes, slang, or trending keywords of that specific region. 
+            For example, if the query is "생활 꿀팁" and the target is English, use "life hacks". If the target is Japanese, use "인터넷에 유행하는 일본 현지 꿀팁 표현(예: ライフハック 또는 豆知識 등 상황에 맞는 최적의 단어)".
+      
+             Provide ONLY the final localized search query text. Do not include any explanations, quotes, introduction, or punctuation.
+      
+            Korean Query: ${originalQuery}
         `;
 
         const aiResult = await model.generateContent(prompt);
         const translatedText = aiResult.response.text().trim();
 
-        if (translatedText) {
-          query = translatedText;
+        const cleanedText = translatedText.replace(/^["']|["']$/g, "");
+
+        if (cleanedText && cleanedText !== originalQuery) {
+          query = cleanedText;
           isTranslated = true;
-        //   console.log(`[AI 유튜브 의역 완료] ${originalQuery} -> ${query}`);
+          console.log(
+            `[AI 국가별 현지화 완료] 국가: ${regionCode} | ${originalQuery} -> ${query}`
+          );
         }
       } catch (aiError) {
         console.error(
@@ -110,7 +147,7 @@ export async function GET(request: Request) {
     // 대량 호출 방지를 위해 결과는 20개로 제한, 조회수순(viewCount) 기본 정렬
     const searchUrl = `${YOUTUBE_API_BASE}/search?part=snippet&q=${encodeURIComponent(
       query
-    )}&regionCode=${regionCode}&publishedAfter=${encodeURIComponent(
+    )}&regionCode=${regionCode}&relevanceLanguage=${relevanceLanguage}&publishedAfter=${encodeURIComponent(
       publishedAfter
     )}${durationParam}&order=viewCount&type=video&maxResults=${maxResults}&key=${API_KEY}`;
 
@@ -152,7 +189,7 @@ export async function GET(request: Request) {
     const channelIdsStr = Array.from(new Set(channelIds)).join(","); // 중복 채널 ID 제거 후 결합
 
     // ==========================================
-    // STEP 2 & 3: 상세 스펙 일괄 요청 (Promise.all 병렬 처리)
+    // STEP 2 & 3: 상세 스펙 일괄 요청 
     // ==========================================
     const videosUrl = `${YOUTUBE_API_BASE}/videos?part=statistics,contentDetails,snippet&id=${videoIdsStr}&key=${API_KEY}`;
     const channelsUrl = `${YOUTUBE_API_BASE}/channels?part=statistics&id=${channelIdsStr}&key=${API_KEY}`;
