@@ -1,22 +1,16 @@
 "use client";
 
 import { useState } from "react";
-
-// 유튜브 데이터 규격 인터페이스 선언
-interface YouTubeVideo {
-  id: string;
-  title: string;
-  thumbnail: string;
-  channel: string;
-  channelId: string;
-  date: string;
-  views: number;
-  likes: number;
-  comments: number;
-  duration: string; // ISO 8601 포맷 (예: PT12M45S)
-  subscribers: number;
-  tags: string[];
-}
+import AiScriptDrawer from "./components/AiScriptDrawer";
+import VideoDetailDrawer from "./components/VideoDetailDrawer";
+import SelectableChip from "./components/SelectableChip";
+import { YouTubeVideo } from "./types/youtube";
+import {
+  parseISO8601ToSeconds,
+  formatDuration,
+  formatNumber,
+  formatDate,
+} from "./utils/format";
 
 export default function YouTubeSearchPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -38,13 +32,9 @@ export default function YouTubeSearchPage() {
   // 동영상 재생 여부 상태 변수
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // 좌측 AI 대본 생성기 제어를 위한 상태 상태값
-  const [isLeftOpen, setIsLeftOpen] = useState(false); // 좌측 서랍 열림 상태
+  // 💡 메인 뷰에는 오직 좌측 패널 On/Off 용 기본 트리거 제어 상태만 깔끔하게 남겨둡니다.
+  const [isLeftOpen, setIsLeftOpen] = useState(false);
   const [isLeftClosing, setIsLeftClosing] = useState(false);
-  const [userRawScript, setUserRawScript] = useState(""); // 입력된 자막 스크립트
-  const [scriptStyle, setScriptStyle] = useState("default"); // default, shorts, blog
-  const [generatedResult, setGeneratedResult] = useState(""); // AI 각색 결과물
-  const [isScriptLoading, setIsScriptLoading] = useState(false); // 로딩 스피너 제어
 
   const countries = [
     { name: "대한민국 🇰🇷", code: "KR" },
@@ -57,57 +47,6 @@ export default function YouTubeSearchPage() {
     { name: "스페인 🇪🇸", code: "ES" },
     { name: "일본 🇯🇵", code: "JP" },
   ];
-
-  // 1. 유틸리티: ISO 8601 재생시간 포맷(PT1H2M3S)을 초(Seconds) 단위 숫자로 변환하는 함수
-  const parseISO8601ToSeconds = (isoString: string): number => {
-    const match = isoString.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-    if (!match) return 0;
-    const hours = parseInt(match[1] || "0", 10);
-    const minutes = parseInt(match[2] || "0", 10);
-    const seconds = parseInt(match[3] || "0", 10);
-    return hours * 3600 + minutes * 60 + seconds;
-  };
-
-  // 2. 유틸리티: 초(Seconds) 단위를 화면에 띄울 '00:00' 포맷 문자열로 파싱하는 함수
-  const formatDuration = (isoString: string): string => {
-    const totalSeconds = parseISO8601ToSeconds(isoString);
-    if (totalSeconds === 0) return "0:00";
-    const hrs = Math.floor(totalSeconds / 3600);
-    const mins = Math.floor((totalSeconds % 3600) / 60);
-    const secs = totalSeconds % 60;
-
-    if (hrs > 0) {
-      return `${hrs}:${mins.toString().padStart(2, "0")}:${secs
-        .toString()
-        .padStart(2, "0")}`;
-    }
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  // 3. 유틸리티: 큰 숫자를 천, 만 단위로 이쁘게 축약하는 포맷터
-  const formatNumber = (num: number, suffix: string = "") => {
-    if (num >= 10000)
-      return `${(num / 10000).toFixed(1).replace(".0", "")}만${suffix}`;
-    if (num >= 1000)
-      return `${(num / 1000).toFixed(1).replace(".0", "")}천${suffix}`;
-    return `${num}${suffix}`;
-  };
-
-  // 4. 유틸리티: 실시간 날짜 가독성 변환 기법 (예: "3일 전", "2026-05-12")
-  const formatDate = (dateStr: string): string => {
-    const published = new Date(dateStr);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - published.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays <= 1) return "오늘";
-    if (diffDays <= 7) return `${diffDays}일 전`;
-    return published.toLocaleDateString("ko-KR", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
 
   // 5. 비즈니스 로직: Next.js 백엔드 Route Handler 호출 함수
   const handleSearch = async (e: React.FormEvent) => {
@@ -185,37 +124,6 @@ export default function YouTubeSearchPage() {
     }, 250);
   };
 
-  // 백엔드 Route Handler 통신 함수
-  const handleGenerateCustomScript = async () => {
-    if (!userRawScript.trim()) {
-      alert("유튜브 자막 스크립트 내용을 먼저 붙여넣어 주세요!");
-      return;
-    }
-
-    setIsScriptLoading(true);
-    setGeneratedResult("");
-
-    try {
-      const response = await fetch("/api/gemini/script", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rawScript: userRawScript, style: scriptStyle }),
-      });
-
-      const data = await response.json();
-      if (response.ok && data.result) {
-        setGeneratedResult(data.result);
-      } else {
-        alert(data.error || "대본 생성 중 오류가 발생했습니다.");
-      }
-    } catch (error) {
-      console.error("AI Script Error:", error);
-      alert("서버 통신 상태가 원활하지 않습니다.");
-    } finally {
-      setIsScriptLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 font-sans selection:bg-red-500 selection:text-white">
       {/* 상단 네비게이션 바 */}
@@ -286,18 +194,15 @@ export default function YouTubeSearchPage() {
                     { label: "6개월", value: "6m" },
                     { label: "1년", value: "1y" },
                   ].map((item) => (
-                    <button
+                    <SelectableChip
                       key={item.value}
-                      type="button"
+                      id={item.value}
+                      label={item.label}
+                      isSelected={dateRange === item.value}
                       onClick={() => setDateRange(item.value)}
-                      className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${
-                        dateRange === item.value
-                          ? "bg-neutral-100 text-neutral-950 border-neutral-100 shadow-lg"
-                          : "bg-neutral-950 text-neutral-400 border-neutral-800 hover:border-neutral-700 hover:text-neutral-200"
-                      }`}
-                    >
-                      {item.label}
-                    </button>
+                      variant="mono" // 💡 메인 화면용 흑백 테마 옵션 부여
+                      size="sm" // 💡 메인 화면 가독성에 맞춰 sm 사이즈 옵션 부여
+                    />
                   ))}
                 </div>
               </div>
@@ -353,19 +258,15 @@ export default function YouTubeSearchPage() {
                     { label: "숏폼", value: "short" },
                     { label: "롱폼", value: "long" },
                   ].map((item) => (
-                    <button
+                    <SelectableChip
                       key={item.value}
-                      type="button"
-                      onClick={() => setVideoLength(item.value)}
-                      className={`flex-1 py-2 text-xs font-medium rounded-lg border text-center transition-all 
-                        ${
-                          videoLength === item.value
-                            ? "bg-neutral-100 text-neutral-950 border-neutral-100 shadow-lg"
-                            : "bg-neutral-950 text-neutral-400 border-neutral-800 hover:border-neutral-700 hover:text-neutral-200"
-                        }`}
-                    >
-                      {item.label}
-                    </button>
+                      id={item.value}
+                      label={item.label}
+                      isSelected={dateRange === item.value}
+                      onClick={() => setDateRange(item.value)}
+                      variant="mono" // 💡 메인 화면용 흑백 테마 옵션 부여
+                      size="sm" // 💡 메인 화면 가독성에 맞춰 sm 사이즈 옵션 부여
+                    />
                   ))}
                 </div>
               </div>
@@ -377,19 +278,15 @@ export default function YouTubeSearchPage() {
                 </label>
                 <div className="flex gap-1.5">
                   {["20", "30", "50"].map((count) => (
-                    <button
+                    <SelectableChip
                       key={count}
-                      type="button"
+                      id={count}
+                      label={`${count}개`}
+                      isSelected={maxResults === count}
                       onClick={() => setMaxResults(count)}
-                      className={`flex-1 py-2 text-xs font-bold rounded-lg border text-center transition-all 
-                        ${
-                          maxResults === count
-                            ? "bg-neutral-100 text-neutral-950 border-neutral-100 shadow-lg"
-                            : "bg-neutral-950 text-neutral-400 border-neutral-800 hover:border-neutral-700 hover:text-neutral-200"
-                        }`}
-                    >
-                      {count}개
-                    </button>
+                      variant="mono"
+                      size="sm"
+                    />
                   ))}
                 </div>
               </div>
@@ -401,7 +298,7 @@ export default function YouTubeSearchPage() {
         <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl">
           <div className="px-6 py-4 border-b border-neutral-800 flex justify-between items-center bg-neutral-900/50">
             <h2 className="text-base font-bold tracking-tight flex items-center gap-2">
-              <span>✨</span> 검색 결과{" "}
+              검색 결과{" "}
             </h2>
 
             {/* 폼 또는 필터 컴포넌트 아래 안착 */}
@@ -539,303 +436,24 @@ export default function YouTubeSearchPage() {
         </div>
       </main>
 
-      {/* ================================================================= */}
-      {/* 댓글 전용 서랍 패널 */}
-      {/* ================================================================= */}
-      <div
-        className={`fixed top-[69px] right-0 bottom-0 w-[420px] bg-neutral-900 border-l border-neutral-800 shadow-2xl z-40 transform transition-transform duration-300 ease-in-out flex flex-col ${
-          isPanelOpen ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
-        {selectedVideo && (
-          <>
-            {/* 패널 헤더 */}
-            <div className="p-5 border-b border-neutral-800 flex items-center justify-between bg-neutral-900/80 backdrop-blur">
-              <div className="flex-1 min-w-0 pr-4">
-                <span className="text-[10px] uppercase font-bold text-red-500 tracking-widest block mb-1">
-                  COMMENT ANALYSIS
-                </span>
-                <h3
-                  className="text-sm font-bold text-neutral-100 leading-snug break-words"
-                  title={selectedVideo.title}
-                >
-                  {selectedVideo.title}
-                </h3>
-              </div>
-              <button
-                onClick={() => {
-                  setIsPanelOpen(false);
-                  setIsPlaying(false);
-                }}
-                className="text-neutral-500 hover:text-neutral-200 p-1.5 hover:bg-neutral-800 rounded-lg transition-colors"
-              >
-                ✕
-              </button>
-            </div>
+      <VideoDetailDrawer
+        isOpen={isPanelOpen}
+        onClose={() => {
+          setIsPanelOpen(false);
+          setIsPlaying(false);
+        }}
+        selectedVideo={selectedVideo}
+        isLoading={isPanelLoading}
+        comments={panelComments}
+        isPlaying={isPlaying}
+        setIsPlaying={setIsPlaying}
+      />
 
-            {/* 패널 메인 상단 비디오 요약 */}
-            <div className="p-5 bg-neutral-950/40 border-b border-neutral-800/60">
-              <div className="relative aspect-video rounded-xl overflow-hidden border border-neutral-800 mb-3 shadow-2xl bg-neutral-950">
-                {isPlaying ? (
-                  /* 재생 상태일 때: 공식 유튜브 아이프레임 플레이어 노출 */
-                  <iframe
-                    src={`https://www.youtube.com/embed/${selectedVideo.id}?autoplay=1&rel=0`}
-                    title={selectedVideo.title}
-                    className="w-full h-full border-0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    allowFullScreen
-                  ></iframe>
-                ) : (
-                  /* 기본 상태일 때: 썸네일 이미지 및 플레이 버튼 마스크 */
-                  <div
-                    onClick={() => setIsPlaying(true)}
-                    className="relative w-full h-full group cursor-pointer overflow-hidden"
-                  >
-                    <img
-                      src={selectedVideo.thumbnail}
-                      alt={selectedVideo.title}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                    {/* 어두운 오버레이 및 중앙 재생 아이콘 */}
-                    <div className="absolute inset-0 bg-neutral-950/20 group-hover:bg-neutral-950/50 transition-colors flex items-center justify-center">
-                      <div className="w-14 h-14 bg-red-600 group-hover:bg-red-500 text-white rounded-full flex items-center justify-center shadow-xl transform group-hover:scale-110 transition-all pl-1 duration-300">
-                        <span className="text-xl">▶</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center justify-between mb-2">
-                <div
-                  className="text-xs text-neutral-300 font-bold truncate pr-2"
-                  title={selectedVideo.channel}
-                >
-                  {selectedVideo.channel}
-                </div>
-                <a
-                  href={`https://www.youtube.com/channel/${selectedVideo.channelId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-[10px] bg-neutral-800 hover:bg-neutral-700 text-neutral-300 px-2 py-1 rounded-md font-medium border border-neutral-700/50 transition-colors shadow-sm whitespace-nowrap"
-                >
-                  <span>채널 보기</span>
-                </a>
-              </div>
-              <div className="flex items-center gap-3 text-[11px] text-neutral-500">
-                <span>조회수 {formatNumber(selectedVideo.views, "회")}</span>
-                <span>•</span>
-                <span>댓글 {formatNumber(selectedVideo.comments, "개")}</span>
-              </div>
-            </div>
-
-            {/* 댓글 본문 내용 출력 영역 (스크롤 적용) */}
-            <div className="flex-1 overflow-y-auto p-5 text-xs leading-relaxed text-neutral-300">
-              {isPanelLoading ? (
-                <div className="flex h-full flex-col items-center justify-center text-neutral-500 py-20 gap-3">
-                  <div className="w-6 h-6 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="animate-pulse text-[11px] font-medium">
-                    댓글 수집 중...
-                  </span>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-neutral-400 mb-3 flex items-center gap-1.5">
-                    <span>🔥</span> 댓글 TOP 50
-                  </h4>
-                  {panelComments.length > 0 ? (
-                    panelComments.map((cmt, idx) => (
-                      <div
-                        key={idx}
-                        className="bg-neutral-950/40 border border-neutral-800/40 p-3 rounded-xl hover:border-neutral-700/60 transition-colors"
-                      >
-                        <div className="flex items-center justify-between font-bold text-[11px] text-neutral-400 mb-1.5">
-                          <span>{cmt.author}</span>
-                          <span className="text-[10px] text-neutral-600 font-medium">
-                            👍 {formatNumber(cmt.likes)}
-                          </span>
-                        </div>
-                        {/* 유튜브 이모지 및 특수 서식을 안전하게 표현하기 위해 innerHTML 바인딩 */}
-                        <div
-                          className="text-neutral-300 text-[11px] leading-normal break-words"
-                          dangerouslySetInnerHTML={{ __html: cmt.text }}
-                        ></div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-20 text-neutral-600 font-medium">
-                      댓글이 존재하지 않습니다.
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* ================================================================= */}
-      {/* 좌측 슬라이드 오버 네비게이션 패널 (AI 대본 생성기) */}
-      {/* ================================================================= */}
-      {isLeftOpen && (
-        <>
-          {/* 배경 어둡게 처리 (배경 클릭 시 닫힘) */}
-          <div
-            className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-50 transition-opacity ${
-              isLeftClosing ? "animate-fadeOut" : "animate-fadeIn"
-            }`}
-            onClick={handleCloseLeftDrawer}
-          />
-
-          {/* 좌측 서랍 본체 */}
-          <div
-            className={`fixed inset-y-0 left-0 w-[420px] bg-neutral-900 border-r border-neutral-800 p-6 shadow-2xl overflow-y-auto z-50 text-white flex flex-col justify-between ${
-              isLeftClosing ? "animate-slideOutLeft" : "animate-slideInLeft"
-            }`}
-          >
-            <div>
-              {/* 상단 타이틀 바 */}
-              <div className="flex justify-between items-center mb-5 pb-4 border-b border-neutral-800">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-neutral-200 tracking-wide">
-                    AI 맞춤형 대본 생성기
-                  </h3>
-                </div>
-                <button
-                  onClick={handleCloseLeftDrawer}
-                  className="text-neutral-500 hover:text-white p-1 rounded-lg hover:bg-neutral-800 transition"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
-
-              <p className="text-xs text-neutral-400 mb-5 leading-relaxed">
-                유튜브 등에서 직접 복사해 온 원본 자막 스크립트를 아래에
-                붙여넣으세요. 타임스탬프가 섞여 있어도 AI가 정밀하게 각색 및
-                정제합니다.
-              </p>
-
-              {/* 스타일 선택 라디오 칩 (다크모드 톤앤매너 일치) */}
-              <div className="mb-4">
-                <label className="text-[11px] font-bold text-neutral-400 block mb-2">
-                  원하는 각색 스타일 선택
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { id: "default", label: "📝 기본 대본 정제" },
-                    { id: "shorts", label: "🎬 쇼츠 1분 훅킹" },
-                    { id: "blog", label: "✍️ 블로그 포스팅" },
-                  ].map((option) => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => setScriptStyle(option.id)}
-                      className={`px-3 py-2 text-[11px] rounded-xl border transition-all duration-200 ${
-                        scriptStyle === option.id
-                          ? "bg-indigo-600 text-white border-indigo-600 font-bold shadow-md shadow-indigo-600/20"
-                          : "bg-neutral-950 text-neutral-400 border-neutral-800 hover:text-neutral-200 hover:border-neutral-700"
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 날것의 스크립트 대본 입력창 */}
-              <div className="relative mb-4">
-                <textarea
-                  value={userRawScript}
-                  onChange={(e) => setUserRawScript(e.target.value)}
-                  className="w-full h-44 p-3.5 text-xs bg-neutral-950 border border-neutral-800 rounded-xl text-neutral-300 placeholder-neutral-600 focus:outline-none focus:border-neutral-600 focus:ring-1 focus:ring-neutral-600 transition resize-none RegalScroll leading-relaxed"
-                  placeholder="여기에 유튜브 원본 자막 텍스트를 붙여넣으세요..."
-                />
-                {userRawScript && (
-                  <button
-                    onClick={() => setUserRawScript("")}
-                    className="absolute top-2 right-2 text-[10px] bg-neutral-800 hover:bg-neutral-700 text-neutral-400 px-2 py-0.5 rounded-md transition"
-                  >
-                    전체 비우기
-                  </button>
-                )}
-              </div>
-
-              {/* 생성하기 실행 단추 */}
-              <button
-                onClick={handleGenerateCustomScript}
-                disabled={isScriptLoading}
-                className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:from-neutral-800 disabled:to-neutral-800 disabled:text-neutral-600 text-white font-bold text-xs rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/10"
-              >
-                {isScriptLoading ? (
-                  <>
-                    <svg
-                      className="animate-spin h-3.5 w-3.5 text-white"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      />
-                    </svg>
-                    <span>AI 작가가 원고 집필 중...</span>
-                  </>
-                ) : (
-                  <span>AI 맞춤 대본 빌드하기</span>
-                )}
-              </button>
-
-              {/* AI가 정제 완료한 최종 결과물 출력창 */}
-              {generatedResult && (
-                <div className="mt-5 p-4 bg-neutral-950 rounded-xl border border-neutral-800 relative animate-fadeIn">
-                  <div className="flex justify-between items-center mb-2.5 pb-2 border-b border-neutral-900">
-                    <h6 className="text-[11px] font-bold text-neutral-400">
-                      ✨ AI 최종 각색본:
-                    </h6>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(generatedResult);
-                        alert("대본이 클립보드에 복사되었습니다!");
-                      }}
-                      className="text-[10px] bg-neutral-800 hover:bg-neutral-700 text-neutral-200 px-2 py-1 rounded-md shadow transition"
-                    >
-                      📋 복사하기
-                    </button>
-                  </div>
-                  <p className="text-xs text-neutral-300 whitespace-pre-wrap leading-relaxed max-h-72 overflow-y-auto pr-1 RegalScroll">
-                    {generatedResult}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* 서랍 하단 푸터 데코레이션 */}
-            <div className="text-[10px] text-neutral-600 text-center pt-4 border-t border-neutral-800/50 mt-6">
-              Powered by Google Gemini 2.5 Flash
-            </div>
-          </div>
-        </>
-      )}
+      <AiScriptDrawer
+        isOpen={isLeftOpen}
+        isClosing={isLeftClosing}
+        onClose={handleCloseLeftDrawer}
+      />
     </div>
   );
 }

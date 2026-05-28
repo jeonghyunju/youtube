@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 
 const YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3";
 const API_KEY = process.env.YOUTUBE_API_KEY;
 const AI_API_KEY = process.env.GEMINI_API_KEY;
 
-const ai = new GoogleGenerativeAI(AI_API_KEY || "");
+const ai = new GoogleGenAI({ apiKey: AI_API_KEY || "" });
 
 export async function GET(request: Request) {
-
   try {
     // 0. 프론트엔드로부터 쿼리 파라미터 수신 (검색어, 국가 코드)
     const { searchParams } = new URL(request.url);
@@ -77,8 +76,6 @@ export async function GET(request: Request) {
 
         const targetLanguage = languageMap[regionCode] || "Natural English";
 
-        const model = ai.getGenerativeModel({ model: "gemini-2.5-flash" });
-
         // AI가 정형화된 단어 하나만 딱 뱉도록 가이드하는 프롬프트 조립
         const prompt = `
             You are a professional localizer and cultural expert specializing in global social media and YouTube trends.
@@ -92,9 +89,16 @@ export async function GET(request: Request) {
             Korean Query: ${originalQuery}
         `;
 
-        const aiResult = await model.generateContent(prompt);
-        const translatedText = aiResult.response.text().trim();
+        const aiResult = await ai.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: prompt,
+        });
 
+        if (!aiResult || !aiResult.text) {
+          return NextResponse.json({ error: "AI가 대본 결과를 반환하지 못했습니다." }, { status: 500 });
+        }
+
+        const translatedText = aiResult.text.trim();
         const cleanedText = translatedText.replace(/^["']|["']$/g, "");
 
         if (cleanedText && cleanedText !== originalQuery) {
@@ -189,7 +193,7 @@ export async function GET(request: Request) {
     const channelIdsStr = Array.from(new Set(channelIds)).join(","); // 중복 채널 ID 제거 후 결합
 
     // ==========================================
-    // STEP 2 & 3: 상세 스펙 일괄 요청 
+    // STEP 2 & 3: 상세 스펙 일괄 요청
     // ==========================================
     const videosUrl = `${YOUTUBE_API_BASE}/videos?part=statistics,contentDetails,snippet&id=${videoIdsStr}&key=${API_KEY}`;
     const channelsUrl = `${YOUTUBE_API_BASE}/channels?part=statistics&id=${channelIdsStr}&key=${API_KEY}`;
