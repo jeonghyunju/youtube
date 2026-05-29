@@ -9,7 +9,6 @@ const ai = new GoogleGenAI({ apiKey: AI_API_KEY || "" });
 
 export async function GET(request: Request) {
   try {
-    // 0. 프론트엔드로부터 쿼리 파라미터 수신 (검색어, 국가 코드)
     const { searchParams } = new URL(request.url);
     let query = searchParams.get("q") || "";
     const regionCode = searchParams.get("regionCode") || "KR";
@@ -55,7 +54,6 @@ export async function GET(request: Request) {
       JP: "ja", // 일본어
     };
 
-    // 선택된 국가 코드에 맞는 언어 코드를 추출 (없으면 기본값 영어 'en')
     const relevanceLanguage = languageMapISO639[regionCode] || "en";
 
     // =================================================================
@@ -67,7 +65,7 @@ export async function GET(request: Request) {
           US: "Natural English (United States)",
           CA: "Natural English (Canada)",
           GB: "Natural English (United Kingdom)",
-          IN: "Hindi or natural English popular in India", // 인도는 힌디어나 인도식 영어 트렌드 반영
+          IN: "Hindi or natural English popular in India", 
           FR: "Natural French (Français)",
           DE: "Natural German (Deutsch)",
           ES: "Natural Spanish (Español)",
@@ -143,7 +141,7 @@ export async function GET(request: Request) {
     } else if (dateRange === "1y") {
       now.setFullYear(now.getFullYear() - 1);
     }
-    const publishedAfter = now.toISOString(); // 예: 2026-05-15T17:34:05.000Z
+    const publishedAfter = now.toISOString(); 
 
     // ==========================================
     // STEP 1: 유튜브 검색 API 호출 (search.list)

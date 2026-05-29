@@ -32,7 +32,6 @@ export default function YouTubeSearchPage() {
   // 동영상 재생 여부 상태 변수
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // 💡 메인 뷰에는 오직 좌측 패널 On/Off 용 기본 트리거 제어 상태만 깔끔하게 남겨둡니다.
   const [isLeftOpen, setIsLeftOpen] = useState(false);
   const [isLeftClosing, setIsLeftClosing] = useState(false);
 
@@ -95,9 +94,9 @@ export default function YouTubeSearchPage() {
   const handleRowClick = async (video: YouTubeVideo) => {
     setSelectedVideo(video);
     setIsPanelOpen(true);
-    setIsPanelLoading(true); // 로딩 스피너 활성화
+    setIsPanelLoading(true); 
     setPanelComments([]);
-    setIsPlaying(false); // 👈 다른 영상을 클릭하면 플레이어가 닫히고 다시 썸네일이 나오도록 초기화!
+    setIsPlaying(false); 
 
     try {
       const response = await fetch(`/api/youtube/details?videoId=${video.id}`);
@@ -115,12 +114,11 @@ export default function YouTubeSearchPage() {
 
   // 닫기 버튼이나 배경 클릭 시 바로 꺼지지 않고 애니메이션을 대기하는 헬퍼 함수
   const handleCloseLeftDrawer = () => {
-    setIsLeftClosing(true); // 퇴장 애니메이션 시작 클래스 트리거
+    setIsLeftClosing(true); 
 
-    // globals.css에 설정한 퇴장 시간(0.25초 = 250ms) 뒤에 컴포넌트 언마운트
     setTimeout(() => {
       setIsLeftOpen(false);
-      setIsLeftClosing(false); // 상태 초기화
+      setIsLeftClosing(false); 
     }, 250);
   };
 
@@ -155,7 +153,7 @@ export default function YouTubeSearchPage() {
           </p>
         </div>
 
-        {/* 검색 및 2x2 필터 박스 */}
+        {/* 검색 박스 */}
         <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-2xl mb-12">
           <form onSubmit={handleSearch} className="space-y-6">
             {/* 검색창 인풋 */}
@@ -179,7 +177,7 @@ export default function YouTubeSearchPage() {
               </button>
             </div>
 
-            {/* 2x2 격자 구조 필터 피드 */}
+            {/* 검색 조건 필터 */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 pt-5 border-t border-neutral-800">
               {/* 1. 기간 필터 (1행 1열) */}
               <div className="bg-neutral-950/30 p-4 rounded-xl border border-neutral-800/40">
@@ -200,8 +198,8 @@ export default function YouTubeSearchPage() {
                       label={item.label}
                       isSelected={dateRange === item.value}
                       onClick={() => setDateRange(item.value)}
-                      variant="mono" // 💡 메인 화면용 흑백 테마 옵션 부여
-                      size="sm" // 💡 메인 화면 가독성에 맞춰 sm 사이즈 옵션 부여
+                      variant="mono"
+                      size="sm" 
                     />
                   ))}
                 </div>
@@ -262,10 +260,10 @@ export default function YouTubeSearchPage() {
                       key={item.value}
                       id={item.value}
                       label={item.label}
-                      isSelected={dateRange === item.value}
-                      onClick={() => setDateRange(item.value)}
-                      variant="mono" // 💡 메인 화면용 흑백 테마 옵션 부여
-                      size="sm" // 💡 메인 화면 가독성에 맞춰 sm 사이즈 옵션 부여
+                      isSelected={videoLength === item.value}
+                      onClick={() => setVideoLength(item.value)}
+                      variant="mono" 
+                      size="sm" 
                     />
                   ))}
                 </div>
@@ -301,7 +299,6 @@ export default function YouTubeSearchPage() {
               검색 결과{" "}
             </h2>
 
-            {/* 폼 또는 필터 컴포넌트 아래 안착 */}
             <button
               type="button"
               onClick={() => setIsLeftOpen(true)}
@@ -338,83 +335,95 @@ export default function YouTubeSearchPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-800/60 text-xs">
-                {/* 뼈대 연동 함수 가동 */}
-                {getProcessedResults().map((video) => (
-                  <tr
-                    key={video.id}
-                    onClick={() => handleRowClick(video)} // 행 클릭 이벤트 매핑
-                    className="hover:bg-neutral-800/40 transition-colors group cursor-pointer"
-                  >
-                    {/* 썸네일 */}
-                    <td className="py-3 px-4 align-middle">
-                      <div className="relative aspect-video w-32 bg-neutral-950 rounded overflow-hidden border border-neutral-800">
-                        <img
-                          src={video.thumbnail}
-                          alt={video.title}
-                          className="w-full h-full object-cover"
-                        />
-                        <span className="absolute bottom-0.5 right-0.5 bg-neutral-950/90 text-[9px] px-1 rounded font-bold text-neutral-300">
-                          {formatDuration(video.duration)}
-                        </span>
-                      </div>
-                    </td>
-                    {/* 제목 및 채널 */}
-                    <td className="py-3 px-4 max-w-xs md:max-w-sm align-middle">
-                      <div className="font-bold text-neutral-100 group-hover:text-red-400 transition-colors line-clamp-1 mb-1 leading-snug">
-                        {video.title}
-                      </div>
-                      <div className="text-neutral-400 font-medium text-[11px] flex items-center gap-1 mb-2">
-                        <span>{video.channel}</span>
-                      </div>
-
-                      {/* [새로 추가됨] 최대 7개 제한 해시태그 칩 컴포넌트 배정 */}
-                      {video.tags && video.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-0.5 max-w-full">
-                          {video.tags.slice(0, 6).map((tag, idx) => (
-                            <span
-                              key={idx}
-                              className="inline-block bg-neutral-950 text-neutral-500 text-[10px] font-medium px-1.5 py-0.5 rounded border border-neutral-800/60 max-w-[100px] truncate"
-                              title={tag} // 마우스를 올리면 긴 태그 원본이 툴팁으로 보이게 배려
-                            >
-                              #{tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </td>
-                    {/* 구독자수 (새로 매핑 처리됨) */}
-                    <td className="py-3 px-2 text-right font-medium text-neutral-300 align-middle">
-                      {formatNumber(video.subscribers, "명")}
-                    </td>
-                    {/* 조회수 */}
-                    <td className="py-3 px-2 text-right font-semibold text-neutral-200 align-middle">
-                      {formatNumber(video.views, "회")}
-                    </td>
-                    {/* 좋아요 */}
-                    <td className="py-3 px-2 text-right text-neutral-400 font-medium align-middle">
-                      {formatNumber(video.likes, "")}
-                    </td>
-                    {/* 댓글 */}
-                    <td className="py-3 px-2 text-right text-neutral-400 font-medium align-middle">
-                      {formatNumber(video.comments, "")}
-                    </td>
-                    {/* 날짜 */}
-                    <td className="py-3 px-2 text-center text-neutral-500 font-medium whitespace-nowrap align-middle">
-                      {formatDate(video.date)}
-                    </td>
-                  </tr>
-                ))}
-
-                {/* 대기 상태 스케치 */}
-                {isLoading && (
+                {isLoading ? (
                   <tr>
-                    <td
-                      colSpan={7}
-                      className="text-center py-16 text-neutral-400 font-medium"
-                    >
-                      유튜브 실시간 마스터 데이터 취합 중...
+                    <td colSpan={7} className="py-28 text-center">
+                      <div className="flex flex-col items-center justify-center gap-6">
+                        <div className="relative w-10 h-10">
+                          <div className="absolute inset-0 rounded-full border-4 border-neutral-800"></div>
+                          <div className="absolute inset-0 rounded-full border-4 border-red-500 border-t-transparent animate-spin"></div>
+                        </div>
+
+                        <div className="space-y-1.5 animate-pulse">
+                          <p className="text-sm font-bold text-neutral-200">
+                            유튜브 실시간 마스터 데이터 취합 중...
+                          </p>
+                          <p className="text-xs text-neutral-500">
+                            AI 번역 연산 및 국가별 실시간 통계를 병렬 취합하고
+                            있습니다. 잠시만 기다려 주세요.
+                          </p>
+                        </div>
+                      </div>
                     </td>
                   </tr>
+                ) : (
+                  <>
+                    {getProcessedResults().map((video) => (
+                      <tr
+                        key={video.id}
+                        onClick={() => handleRowClick(video)} 
+                        className="hover:bg-neutral-800/40 transition-colors group cursor-pointer"
+                      >
+                        {/* 썸네일 */}
+                        <td className="py-3 px-4 align-middle">
+                          <div className="relative aspect-video w-32 bg-neutral-950 rounded overflow-hidden border border-neutral-800">
+                            <img
+                              src={video.thumbnail}
+                              alt={video.title}
+                              className="w-full h-full object-cover"
+                            />
+                            <span className="absolute bottom-0.5 right-0.5 bg-neutral-950/90 text-[9px] px-1 rounded font-bold text-neutral-300">
+                              {formatDuration(video.duration)}
+                            </span>
+                          </div>
+                        </td>
+                        {/* 제목 및 채널 */}
+                        <td className="py-3 px-4 max-w-xs md:max-w-sm align-middle">
+                          <div className="font-bold text-neutral-100 group-hover:text-red-400 transition-colors line-clamp-1 mb-1 leading-snug">
+                            {video.title}
+                          </div>
+                          <div className="text-neutral-400 font-medium text-[11px] flex items-center gap-1 mb-2">
+                            <span>{video.channel}</span>
+                          </div>
+
+                          {/* 해시태그 칩 컴포넌트 */}
+                          {video.tags && video.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-0.5 max-w-full">
+                              {video.tags.slice(0, 6).map((tag, idx) => (
+                                <span
+                                  key={idx}
+                                  className="inline-block bg-neutral-950 text-neutral-500 text-[10px] font-medium px-1.5 py-0.5 rounded border border-neutral-800/60 max-w-[100px] truncate"
+                                  title={tag} 
+                                >
+                                  #{tag}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                        {/* 구독자수 */}
+                        <td className="py-3 px-2 text-right font-medium text-neutral-300 align-middle">
+                          {formatNumber(video.subscribers, "명")}
+                        </td>
+                        {/* 조회수 */}
+                        <td className="py-3 px-2 text-right font-semibold text-neutral-200 align-middle">
+                          {formatNumber(video.views, "회")}
+                        </td>
+                        {/* 좋아요 */}
+                        <td className="py-3 px-2 text-right text-neutral-400 font-medium align-middle">
+                          {formatNumber(video.likes, "")}
+                        </td>
+                        {/* 댓글 */}
+                        <td className="py-3 px-2 text-right text-neutral-400 font-medium align-middle">
+                          {formatNumber(video.comments, "")}
+                        </td>
+                        {/* 날짜 */}
+                        <td className="py-3 px-2 text-center text-neutral-500 font-medium whitespace-nowrap align-middle">
+                          {formatDate(video.date)}
+                        </td>
+                      </tr>
+                    ))}
+                  </>
                 )}
 
                 {/* 결과 빈 화면 제어 */}

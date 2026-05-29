@@ -181,7 +181,7 @@ export default function AiScriptDrawer({
             </button>
           </div>
 
-          {/* [동적 폼 1] 자막 스크립트 변환 레이아웃 */}
+          {/* 자막 스크립트 변환 레이아웃 */}
           {activeTab === "transform" && (
             <div className="animate-fadeIn">
               <p className="text-[11px] text-neutral-400 mb-4 pb-4 border-b border-neutral-800 leading-relaxed">
@@ -204,7 +204,6 @@ export default function AiScriptDrawer({
                       label={option.label}
                       isSelected={scriptStyle === option.id}
                       onClick={() => setScriptStyle(option.id)}
-                      // variant와 size는 생략 시 자동으로 'purple', 'xs' 지정됨!
                     />
                   ))}
                 </div>
@@ -230,7 +229,7 @@ export default function AiScriptDrawer({
             </div>
           )}
 
-          {/* [동적 폼 2] 제품 기반 기획 생성 레이아웃 */}
+          {/* 제품 기반 기획 생성 레이아웃 */}
           {activeTab === "create" && (
             <div className="animate-fadeIn">
               <p className="text-[11px] text-neutral-400 mb-4 leading-relaxed">

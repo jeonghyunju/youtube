@@ -5,8 +5,8 @@ interface SelectableChipProps {
   label: string;
   isSelected: boolean;
   onClick: () => void;
-  variant?: 'purple' | 'mono'; // 💡 테마 선택 옵션 (기본값: purple)
-  size?: 'sm' | 'xs';          // 💡 크기 선택 옵션 (기본값: xs)
+  variant?: 'purple' | 'mono'; // 테마 선택 옵션 (기본값: purple)
+  size?: 'sm' | 'xs';          // 크기 선택 옵션 (기본값: xs)
 }
 
 export default function SelectableChip({
@@ -28,7 +28,7 @@ export default function SelectableChip({
     ? isSelected
       ? 'bg-indigo-600 text-white border-indigo-600'
       : 'bg-neutral-950 text-neutral-400 border-neutral-800 hover:border-neutral-700 hover:text-neutral-200'
-    : isSelected // 'mono' (메인 대시보드 흑백 톤)
+    : isSelected 
       ? 'bg-neutral-100 text-neutral-950 border-neutral-100 shadow-lg'
       : 'bg-neutral-950 text-neutral-400 border-neutral-800 hover:border-neutral-700 hover:text-neutral-200';
 

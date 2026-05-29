@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { YouTubeVideo } from '../types/youtube';
-import { formatNumber } from '../utils/format';
+import { YouTubeVideo } from "../types/youtube";
+import { formatNumber } from "../utils/format";
 
 interface VideoDetailDrawerProps {
   isOpen: boolean;
@@ -22,7 +22,6 @@ export default function VideoDetailDrawer({
   isPlaying,
   setIsPlaying,
 }: VideoDetailDrawerProps) {
-  
   return (
     <div
       className={`fixed top-[69px] right-0 bottom-0 w-[420px] bg-neutral-900 border-l border-neutral-800 shadow-2xl z-40 transform transition-transform duration-300 ease-in-out flex flex-col ${
@@ -56,7 +55,6 @@ export default function VideoDetailDrawer({
           <div className="p-5 bg-neutral-950/40 border-b border-neutral-800/60">
             <div className="relative aspect-video rounded-xl overflow-hidden border border-neutral-800 mb-3 shadow-2xl bg-neutral-950">
               {isPlaying ? (
-                /* 재생 상태일 때: 공식 유튜브 아이프레임 플레이어 노출 */
                 <iframe
                   src={`https://www.youtube.com/embed/${selectedVideo.id}?autoplay=1&rel=0`}
                   title={selectedVideo.title}
@@ -65,7 +63,6 @@ export default function VideoDetailDrawer({
                   allowFullScreen
                 ></iframe>
               ) : (
-                /* 기본 상태일 때: 썸네일 이미지 및 플레이 버튼 마스크 */
                 <div
                   onClick={() => setIsPlaying(true)}
                   className="relative w-full h-full group cursor-pointer overflow-hidden"
@@ -90,14 +87,41 @@ export default function VideoDetailDrawer({
               >
                 {selectedVideo.channel}
               </div>
-              <a
-                href={`https://www.youtube.com/channel/${selectedVideo.channelId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-[10px] bg-neutral-800 hover:bg-neutral-700 text-neutral-300 px-2 py-1 rounded-md font-medium border border-neutral-700/50 transition-colors shadow-sm whitespace-nowrap"
-              >
-                <span>채널 보기</span>
-              </a>
+              <div className="flex items-center gap-1.5 whitespace-nowrap">
+                {/* 채널 보기 버튼 */}
+                <a
+                  href={`https://www.youtube.com/channel/${selectedVideo.channelId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[10px] bg-neutral-800 hover:bg-neutral-700 text-neutral-300 px-2 py-1.5 rounded-md font-medium border border-neutral-700/50 transition-colors shadow-sm"
+                >
+                  <span>채널 보기</span>
+                </a>
+
+                {/* 유튜브 공식 사이트 이동 버튼 */}
+                <a
+                  href={`https://www.youtube.com/watch?v=${selectedVideo.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer" 
+                  className="inline-flex items-center gap-1 text-[10px] bg-red-600/10 hover:bg-red-600 border border-red-500/30 hover:border-red-500 text-red-400 hover:text-white px-2 py-1.5 rounded-md font-bold transition-all duration-200 shadow-sm"
+                  title="유튜브 공식 웹사이트로 이동하여 영상을 시청합니다."
+                >
+                  <svg
+                    className="w-3 h-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2.5"
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                    />
+                  </svg>
+                  <span>유튜브에서 보기</span>
+                </a>
+              </div>
             </div>
             <div className="flex items-center gap-3 text-[11px] text-neutral-500">
               <span>조회수 {formatNumber(selectedVideo.views, "회")}</span>
@@ -106,7 +130,7 @@ export default function VideoDetailDrawer({
             </div>
           </div>
 
-          {/* 댓글 본문 내용 출력 영역 (스크롤 적용) */}
+          {/* 댓글 본문 내용 출력 영역 */}
           <div className="flex-1 overflow-y-auto p-5 text-xs leading-relaxed text-neutral-300">
             {isLoading ? (
               <div className="flex h-full flex-col items-center justify-center text-neutral-500 py-20 gap-3">
