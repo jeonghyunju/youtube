@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import AiScriptDrawer from "./components/AiScriptDrawer";
 import VideoDetailDrawer from "./components/VideoDetailDrawer";
 import SelectableChip from "./components/SelectableChip";
 import { YouTubeVideo } from "./types/youtube";
@@ -31,9 +30,6 @@ export default function YouTubeSearchPage() {
 
   // 동영상 재생 여부 상태 변수
   const [isPlaying, setIsPlaying] = useState(false);
-
-  const [isLeftOpen, setIsLeftOpen] = useState(false);
-  const [isLeftClosing, setIsLeftClosing] = useState(false);
 
   const countries = [
     { name: "대한민국 🇰🇷", code: "KR" },
@@ -110,16 +106,6 @@ export default function YouTubeSearchPage() {
     } finally {
       setIsPanelLoading(false);
     }
-  };
-
-  // 닫기 버튼이나 배경 클릭 시 바로 꺼지지 않고 애니메이션을 대기하는 헬퍼 함수
-  const handleCloseLeftDrawer = () => {
-    setIsLeftClosing(true); 
-
-    setTimeout(() => {
-      setIsLeftOpen(false);
-      setIsLeftClosing(false); 
-    }, 250);
   };
 
   return (
@@ -298,27 +284,6 @@ export default function YouTubeSearchPage() {
             <h2 className="text-base font-bold tracking-tight flex items-center gap-2">
               검색 결과{" "}
             </h2>
-
-            <button
-              type="button"
-              onClick={() => setIsLeftOpen(true)}
-              className="w-full md:w-auto px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs rounded-xl transition-all duration-300 flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/10 group tracking-wide"
-            >
-              <span>AI 맞춤형 대본 생성기 열기</span>
-              <svg
-                className="w-3.5 h-3.5 text-indigo-200 group-hover:translate-x-0.5 transition-transform"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2.5"
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </button>
           </div>
 
           <div className="overflow-x-auto">
@@ -456,12 +421,6 @@ export default function YouTubeSearchPage() {
         comments={panelComments}
         isPlaying={isPlaying}
         setIsPlaying={setIsPlaying}
-      />
-
-      <AiScriptDrawer
-        isOpen={isLeftOpen}
-        isClosing={isLeftClosing}
-        onClose={handleCloseLeftDrawer}
       />
     </div>
   );
